@@ -35,7 +35,14 @@ def get_client(api_key):
 def get_filename(country_codes = COUNTY_CODES, start_date=START_DATE, end_date=END_DATE):
     #put the country codes in a string
     country_codes = '-'.join(country_codes)
+    running_dir = os.getcwd()
+    parent_dir = os.path.dirname(running_dir)
+
     filename = f"data/{country_codes}_{start_date}_{end_date}.sqlite"
+
+    full_path = os.path.join(parent_dir, 'data_collection', filename)
+    full_path = full_path.replace('\\', '/')
+    
     return filename
 
 def create_folder(filename):
@@ -47,6 +54,15 @@ def create_folder(filename):
             os.makedirs(folders)
     except Exception as e:
         print(f"Error: {e}")
+
+def get_engine(filename):
+    try:
+        engine = create_engine(f'sqlite:///{filename}')
+        print(f'sqlite:///{filename}')
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+    return engine
 
 # Main functions
 
@@ -67,7 +83,7 @@ def run_querry(country_code, client, start_tz, end_tz):
 
 def save_data(df, filename):
     try:
-        engine = create_engine(f'sqlite:///{filename}')
+        engine = get_engine(filename)
         df.to_sql(filename, engine, if_exists='replace', index=False)
     except Exception as e:
         print(f"Error: {e}")
@@ -81,7 +97,8 @@ def download_data(client, country_codes = COUNTY_CODES, start_date= START_DATE, 
     if os.path.exists(filename):
         print(f"Data already collected in {filename}")
         try:
-            df = pd.read_sql(filename, create_engine(f'sqlite:///{filename}'))
+            engine = get_engine(filename)
+            df = pd.read_sql(filename, engine)
             
             #return num rows
             return df.index.size
@@ -104,14 +121,17 @@ def download_data(client, country_codes = COUNTY_CODES, start_date= START_DATE, 
             df = pd.merge(df, df_country, on='Datetime', how='outer')
 
     save_data(df, filename)
+    print(f"Data saved in {filename}")
 
     return df.index.size
 
 # Main code
-
-if __name__ == '__main__':
+def main():
     api_key = get_api_key()
     client = get_client(api_key)
     print(client)
     size = download_data(client)
     print(f'There are {size} rows in the dataset.')
+
+if __name__ == '__main__':
+    main()
