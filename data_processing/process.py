@@ -2,6 +2,8 @@ import os
 import pandas as pd
 from sqlalchemy import create_engine, inspect
 
+# Global variables
+
 COLUMNS = {}
 
 # helper functions
@@ -181,15 +183,6 @@ def peaks(df, column_names):
         raise ValueError('Error calculating peak hours')
     return df
 
-def get_anomalies(df, column_names):
-    anomalies = pd.DataFrame()
-    for col in column_names:
-        Q1 = df[col].quantile(0.25)
-        Q3 = df[col].quantile(0.75)
-        IQR = Q3 - Q1
-        anomalies[col] = df[(df[col] < (Q1 - 1.5 * IQR)) | (df[col] > (Q3 + 1.5 * IQR))][col]
-    return anomalies
-
 def correlation_matrix(df):
     try:
         df2 = df.copy()
@@ -216,31 +209,33 @@ def main():
     filename = get_in_filename()
     out_file_name = get_out_filename()
 
+    # Check if data already processed
     if os.path.exists(out_file_name):
         print(f"Data already processed in {filename}")
         return None
     
+    # Process data
     engine = get_engine(filename)
     table_names = get_table_names(engine)
     df = get_data(engine, table_names[0])
     df = preprocess_data(df)
-
+    
     country_codes = get_country_codes(df)
     column_names = country_codes
 
     df = process_all_data(df, column_names)
 
-    anomalies = get_anomalies(df, column_names)
     corr = correlation_matrix(df)
 
     dfs = {
         'df': df,
-        'anomalies': anomalies,
         'corr': corr
     }
+
     save_to_sqlite(dfs, out_file_name)
 
     print(COLUMNS.keys())
+    print("Data processing completed.")
 
 if __name__ == '__main__':
     main()

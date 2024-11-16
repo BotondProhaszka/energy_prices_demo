@@ -10,6 +10,8 @@ from tkcalendar import DateEntry
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+# Global variables
+
 DF_Y_TYPES = []
 DF_Y_COUNTRIES = []
 DF_Y_COLS = []
@@ -47,7 +49,6 @@ def get_out_filename():
 def get_engine(filename):
     try:
         engine = create_engine(f'sqlite:///{filename}')
-        print(engine)
     except Exception as e:
         print(f"Error: {e}")
         raise ValueError('Error creating engine')
@@ -92,17 +93,18 @@ def get_col_names(countries, col_types):
     cols = [country + '_' + col_type for country in countries for col_type in col_types]
     # apepnd countries to cols
     cols.extend(countries)
-    print(f"Selected columns: {cols}")
     return cols
 
 ## GUI functions
 
-def create_ui(columns):
-    global DF_Y_COLS, DF_Y_COUNTRIES, DF_Y_TYPES
+def create_ui():
+    global DF, DF_Y_COLS, DF_Y_COUNTRIES, DF_Y_TYPES
+
     root = tk.Tk()
     root.title("Demo app")
+    columns = DF.columns
 
-    # Create a Listbox for selecting multiple columns
+    # Create a Listbox for selecting TYPES and COUNTRIES
     listbox_type = Listbox(root, selectmode=MULTIPLE)
     listbox_country = Listbox(root, selectmode=MULTIPLE)
 
@@ -123,7 +125,9 @@ def create_ui(columns):
 
     selected_country_listbox.grid(row=0, column=2)
     selected_type_listbox.grid(row=1, column=2)
+    
 
+    # Create buttons for selecting countries and types
     def on_select_country():
         global DF_Y_COUNTRIES
         selected_indices = listbox_country.curselection()
@@ -134,7 +138,7 @@ def create_ui(columns):
         selected_country_listbox.delete(0, tk.END)
         for col in DF_Y_COUNTRIES:
             selected_country_listbox.insert(tk.END, col)
-
+    
     select_country_button = tk.Button(root, text="Select countries", command=on_select_country)
     select_country_button.grid(row=0, column=1)
 
@@ -166,12 +170,13 @@ def date_picker(root, init_start=None, init_end=None):
     end_date_picker = DateEntry(root)
     end_date_picker.grid(row=1, column=4)
 
+    # Set initial dates
     if init_start:
         start_date_picker.set_date(init_start)
     if init_end:
         end_date_picker.set_date(init_end)
 
-    def on_select_date():
+    def update_date():
         global START, END
         START = start_date_picker.get_date()
         END = end_date_picker.get_date()
@@ -180,7 +185,7 @@ def date_picker(root, init_start=None, init_end=None):
         END = pd.to_datetime(END)
 
         print(f"Selected dates: {START} - {END}")
-    return on_select_date
+    return update_date
 
 def create_figure():
     fig = Figure()
@@ -190,46 +195,58 @@ def create_figure():
 def show_figure():
     global DF, AX_DF, CANVAS_DF, DF_Y_COLS
 
-    AX_DF.clear()
-    df = DF.loc[START:END]
+    try:
+        # clear the plot
+        AX_DF.clear()
 
-    X_col = pd.to_datetime(df.index)
+        # get the data between START and END
+        df = DF.loc[START:END]
 
-    for y_col_name in DF_Y_COLS:
-        y = df[y_col_name]
-        AX_DF.plot(X_col, y, label=y_col_name)
+        # get X and Y data
+        X_col = pd.to_datetime(df.index)
 
+        for y_col_name in DF_Y_COLS:
+            y = df[y_col_name]
+            AX_DF.plot(X_col, y, label=y_col_name)
 
-    AX_DF.legend()
-    AX_DF.set_xlabel('Datetime')
-    AX_DF.set_ylabel('Y')
-    AX_DF.set_title('Demo plot')
+        # add legend, xlabel, ylabel and title
+        AX_DF.legend()
+        AX_DF.set_xlabel('Datetime')
+        AX_DF.set_ylabel('Y')
+        AX_DF.set_title('Demo plot')
 
-    # rotate x ticks
-    for tick in AX_DF.get_xticklabels():
-        tick.set_rotation(90)
+        # rotate x ticks
+        for tick in AX_DF.get_xticklabels():
+            tick.set_rotation(20)
 
-
-    CANVAS_DF.get_tk_widget().grid(row=2, column=0, columnspan=5)
-    CANVAS_DF.draw()
+        CANVAS_DF.get_tk_widget().grid(row=2, column=0, columnspan=5)
+        CANVAS_DF.draw()
+    except Exception as e:
+        print(f"Error: {e}")
 
 def show_corr_matrix():
     global CORR_DF, AX_CORR, FIG_CORR, CANVAS_CORR, DF_Y_COLS, COLORBAR_CORR
     try:
-        print(CORR_DF.columns)
+        # get the correlation matrix
         corr_df = CORR_DF.loc[DF_Y_COLS, DF_Y_COLS]
+
         AX_CORR.clear()
+
+        # plot the correlation matrix
         cax = AX_CORR.matshow(corr_df, cmap='coolwarm', vmin=-1, vmax=1)
+
+        # set x and y ticks
         AX_CORR.set_xticks(np.arange(len(corr_df.columns)))
         AX_CORR.set_yticks(np.arange(len(corr_df.index)))
         AX_CORR.set_xticklabels(corr_df.columns, rotation=90)
         AX_CORR.set_yticklabels(corr_df.index)
 
+        # add colorbar
         if 'COLORBAR_CORR' not in globals():
             COLORBAR_CORR = FIG_CORR.colorbar(cax)
         else:
             COLORBAR_CORR.update_normal(cax)
-
+        
         AX_CORR.set_title('Correlation matrix')
 
         CANVAS_CORR.get_tk_widget().grid(row=2, column=7, columnspan=5)
@@ -239,16 +256,20 @@ def show_corr_matrix():
         print(f"Error: {e}")
 
 
-def update_figure(on_select_date):
+def update_figure(update_date):
     global DF_Y_COUNTRIES, DF_Y_TYPES, DF_Y_COLS
 
-    on_select_date()
+    # get selected dates
+    update_date()
 
+    # get selected columns
     DF_Y_COLS = get_col_names(DF_Y_COUNTRIES, DF_Y_TYPES)
     print(f"Selected columns: {DF_Y_COLS}")
 
+    # update the main plot
     show_figure()
 
+    # update the correlation matrix
     show_corr_matrix()
 
 
@@ -259,28 +280,30 @@ def main():
     engine = get_engine(filename)
     table_names = get_table_names(engine)
 
+    # read in the dataframes
     dfs = read_in_dfs(engine, table_names)
     DF = dfs['df']
     CORR_DF = dfs['corr']
     CORR_DF.set_index('index', inplace=True)
+
     # set index to datetime in df
     DF['Datetime'] = pd.to_datetime(DF['Datetime'])
     DF.set_index('Datetime', inplace=True)
 
-    df_cols = DF.columns
-    root = create_ui(df_cols)
+    # create the GUI
+    root = create_ui()
 
     # create a plot
     fig_df, AX_DF = create_figure()
     FIG_CORR, AX_CORR = create_figure()
     CANVAS_DF = FigureCanvasTkAgg(fig_df, master=root)
     CANVAS_CORR = FigureCanvasTkAgg(FIG_CORR, master=root)
-    on_select_date = date_picker(root, init_start=DF.index[0], init_end=DF.index[-1])
+    update_date = date_picker(root, init_start=DF.index[0], init_end=DF.index[-1])
     show_figure()
     show_corr_matrix()
 
     #button to update the plot
-    update_button = tk.Button(root, text="Update Plot", command=lambda: update_figure(on_select_date))
+    update_button = tk.Button(root, text="Update Plot", command=lambda: update_figure(update_date))
     update_button.grid(row=0, column=6, columnspan=2)
     
     # a label nex to the button

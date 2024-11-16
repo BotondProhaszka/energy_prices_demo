@@ -4,6 +4,8 @@ import pandas as pd
 
 from sqlalchemy import create_engine
 
+# Global variables
+
 COUNTY_CODES = ['FR', 'NL', 'BE', 'HU', 'RO'] # List of country codes to collect data for
 START_DATE = '2020-01-01' # Start date for data collection (00:00 UTC)
 END_DATE = '2020-03-01' # End date for data collection (00:00 UTC)
@@ -84,16 +86,18 @@ def run_querry(country_code, client, start_tz, end_tz):
 def save_data(df, filename):
     try:
         engine = get_engine(filename)
-        df.to_sql(filename, engine, if_exists='replace', index=False)
+        df.to_sql(filename, engine, if_exists='replace', index=False)       # Save data to SQLite database
     except Exception as e:
         print(f"Error: {e}")
         return None
     
     return filename
 
+# return num rows
 def download_data(client, country_codes = COUNTY_CODES, start_date= START_DATE, end_date= END_DATE):
     filename = get_filename(country_codes, start_date, end_date)
 
+    # Check if data already collected
     if os.path.exists(filename):
         print(f"Data already collected in {filename}")
         try:
@@ -112,6 +116,7 @@ def download_data(client, country_codes = COUNTY_CODES, start_date= START_DATE, 
     start_tz = pd.Timestamp(START_DATE, tz='UTC')
     end_tz = pd.Timestamp(END_DATE, tz='UTC')
 
+    # Collect data for each country
     for country_code in COUNTY_CODES:
         print(f"Collecting data for {country_code}...")
         df_country = run_querry(country_code, client, start_tz, end_tz)
@@ -120,6 +125,7 @@ def download_data(client, country_codes = COUNTY_CODES, start_date= START_DATE, 
         else:
             df = pd.merge(df, df_country, on='Datetime', how='outer')
 
+    # Save data
     save_data(df, filename)
     print(f"Data saved in {filename}")
 
@@ -132,6 +138,7 @@ def main():
     print(client)
     size = download_data(client)
     print(f'There are {size} rows in the dataset.')
+    print("Data collection completed.")
 
 if __name__ == '__main__':
     main()
