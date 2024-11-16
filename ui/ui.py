@@ -154,7 +154,7 @@ def create_ui(columns):
 
     return root
 
-def date_picker(root):
+def date_picker(root, init_start=None, init_end=None):
     # Add date pickers
     start_date_label = tk.Label(root, text="Start Date")
     start_date_label.grid(row=0, column=3)
@@ -165,6 +165,11 @@ def date_picker(root):
     end_date_label.grid(row=1, column=3)
     end_date_picker = DateEntry(root)
     end_date_picker.grid(row=1, column=4)
+
+    if init_start:
+        start_date_picker.set_date(init_start)
+    if init_end:
+        end_date_picker.set_date(init_end)
 
     def on_select_date():
         global START, END
@@ -178,7 +183,7 @@ def date_picker(root):
     return on_select_date
 
 def create_figure():
-    fig = Figure(figsize=(7, 5), dpi=100)
+    fig = Figure()
     ax = fig.add_subplot(111)
     return fig, ax
 
@@ -199,14 +204,20 @@ def show_figure():
     AX_DF.set_xlabel('Datetime')
     AX_DF.set_ylabel('Y')
     AX_DF.set_title('Demo plot')
+
+    # rotate x ticks
+    for tick in AX_DF.get_xticklabels():
+        tick.set_rotation(90)
+
+
     CANVAS_DF.get_tk_widget().grid(row=2, column=0, columnspan=5)
     CANVAS_DF.draw()
 
 def show_corr_matrix():
     global CORR_DF, AX_CORR, FIG_CORR, CANVAS_CORR, DF_Y_COLS, COLORBAR_CORR
     try:
+        print(CORR_DF.columns)
         corr_df = CORR_DF.loc[DF_Y_COLS, DF_Y_COLS]
-
         AX_CORR.clear()
         cax = AX_CORR.matshow(corr_df, cmap='coolwarm', vmin=-1, vmax=1)
         AX_CORR.set_xticks(np.arange(len(corr_df.columns)))
@@ -250,10 +261,11 @@ def main():
 
     dfs = read_in_dfs(engine, table_names)
     DF = dfs['df']
-    print(DF.head())
     CORR_DF = dfs['corr']
+    CORR_DF.set_index('index', inplace=True)
     # set index to datetime in df
-    DF.index = pd.to_datetime(DF.index)
+    DF['Datetime'] = pd.to_datetime(DF['Datetime'])
+    DF.set_index('Datetime', inplace=True)
 
     df_cols = DF.columns
     root = create_ui(df_cols)
@@ -263,19 +275,19 @@ def main():
     FIG_CORR, AX_CORR = create_figure()
     CANVAS_DF = FigureCanvasTkAgg(fig_df, master=root)
     CANVAS_CORR = FigureCanvasTkAgg(FIG_CORR, master=root)
-    on_select_date = date_picker(root)
+    on_select_date = date_picker(root, init_start=DF.index[0], init_end=DF.index[-1])
     show_figure()
     show_corr_matrix()
 
     #button to update the plot
     update_button = tk.Button(root, text="Update Plot", command=lambda: update_figure(on_select_date))
-    update_button.grid(row=0, column=4, columnspan=5)
+    update_button.grid(row=0, column=6, columnspan=2)
     
     # a label nex to the button
     firs_date = DF.index[0]
     last_date = DF.index[-1]
     info_label = tk.Label(root, text="First date: " + str(firs_date) + " Last date: " + str(last_date))
-    info_label.grid(row=1, column=4, columnspan=5)
+    info_label.grid(row=0, column=7, columnspan=5)
 
     #run the GUI
     root.mainloop()
