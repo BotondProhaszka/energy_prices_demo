@@ -12,9 +12,17 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 DF_Y_TYPES = []
 DF_Y_COUNTRIES = []
 DF_Y_COLS = []
-AX_DF = None
-CANVAS_DF = None
+
 DF = None
+CORR_DF = None
+
+AX_DF = None
+FIG_DF = None
+CANVAS_DF = None
+
+AX_CORR = None
+FIG_CORR = None
+CANVAS_CORR = None
 
 # Helper functions
 
@@ -79,7 +87,7 @@ def unique_col_types(columns, countries):
 def get_col_names(countries, col_types):
     cols = [country + '_' + col_type for country in countries for col_type in col_types]
     # apepnd countries to cols
-    cols.append(countries)
+    cols.extend(countries)
     print(f"Selected columns: {cols}")
     return cols
 
@@ -97,34 +105,20 @@ def create_ui(columns):
     countries = get_2char_columns(columns)
     col_types = unique_col_types(columns, countries)
 
-    for col in col_types:
-        listbox_type.insert(tk.END, col)
-    listbox_type.pack(side=tk.LEFT)
-
     for col in countries:
         listbox_country.insert(tk.END, col)
-    listbox_country.pack(side=tk.LEFT)
+    listbox_country.grid(row=0, column=0)
+    
+    for col in col_types:
+        listbox_type.insert(tk.END, col)
+    listbox_type.grid(row=1, column=0)
 
     # Create Listboxes for displaying selected columns
-    selected_type_listbox = Listbox(root)
     selected_country_listbox = Listbox(root)
+    selected_type_listbox = Listbox(root)
 
-    selected_type_listbox.pack(side=tk.LEFT)
-    selected_country_listbox.pack(side=tk.LEFT)
-
-    def on_select_type():
-        global DF_Y_TYPES
-        selected_indices = listbox_type.curselection()
-        DF_Y_TYPES = [listbox_type.get(i) for i in selected_indices]
-        print(f"Selected types: {DF_Y_TYPES}")
-        
-        # Update the selected type listbox
-        selected_type_listbox.delete(0, tk.END)
-        for col in DF_Y_TYPES:
-            selected_type_listbox.insert(tk.END, col)
-
-    select_type_button = tk.Button(root, text="Select Columns", command=on_select_type)
-    select_type_button.pack(side=tk.LEFT)
+    selected_country_listbox.grid(row=0, column=2)
+    selected_type_listbox.grid(row=1, column=2)
 
     def on_select_country():
         global DF_Y_COUNTRIES
@@ -137,40 +131,73 @@ def create_ui(columns):
         for col in DF_Y_COUNTRIES:
             selected_country_listbox.insert(tk.END, col)
 
-    select_country_button = tk.Button(root, text="Select Columns", command=on_select_country)
-    select_country_button.pack(side=tk.LEFT)
+    select_country_button = tk.Button(root, text="Select countries", command=on_select_country)
+    select_country_button.grid(row=0, column=1)
+
+    def on_select_type():
+        global DF_Y_TYPES
+        selected_indices = listbox_type.curselection()
+        DF_Y_TYPES = [listbox_type.get(i) for i in selected_indices]
+        print(f"Selected types: {DF_Y_TYPES}")
+        
+        # Update the selected type listbox
+        selected_type_listbox.delete(0, tk.END)
+        for col in DF_Y_TYPES:
+            selected_type_listbox.insert(tk.END, col)
+
+    select_type_button = tk.Button(root, text="Select types", command=on_select_type)
+    select_type_button.grid(row=1, column=1)
 
     return root
 
 def create_figure():
-    fig = Figure(figsize=(5, 4), dpi=100)
+    fig = Figure(figsize=(7, 5), dpi=100)
     ax = fig.add_subplot(111)
     return fig, ax
 
-def show_figure(ax, df, X_col, y_col_names, canvas):
-    print(f"X_col: {X_col}")
-    print(f"y_col_names: {y_col_names}")
+def show_figure():
+    global DF, AX_DF, CANVAS_DF, DF_Y_COLS
+    print(f"y_col_names: {DF_Y_COLS}")
 
-    for y_col_name in y_col_names:
-        y = df[y_col_name]
-        ax.plot(X_col, y, label=y_col_name)
-    ax.legend()
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_title('Demo plot')
-    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+    X_col = pd.to_datetime(DF.index)
 
-def update_figure(ax, df, X_col, canvas):
+    for y_col_name in DF_Y_COLS:
+        y = DF[y_col_name]
+        AX_DF.plot(X_col, y, label=y_col_name)
+    AX_DF.legend()
+    AX_DF.set_xlabel('Datetime')
+    AX_DF.set_ylabel('Y')
+    AX_DF.set_title('Demo plot')
+    CANVAS_DF.get_tk_widget().grid(row=2, column=0, columnspan=5)
+    CANVAS_DF.draw()
+
+def show_corr_matrix():
+    global CORR_DF, AX_CORR, FIG_CORR, CANVAS_CORR, DF_Y_COLS
+    try:
+        corr_df = CORR_DF[DF_Y_COLS].loc[DF_Y_COLS]
+
+        AX_CORR.matshow(corr_df)
+        FIG_CORR.colorbar(AX_CORR.matshow(corr_df))
+        CANVAS_CORR.get_tk_widget().grid(row=2, column=5, columnspan=5)
+        CANVAS_CORR.draw()
+        
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+def update_figure():
     global DF_Y_COUNTRIES, DF_Y_TYPES, DF_Y_COLS
 
     DF_Y_COLS = get_col_names(DF_Y_COUNTRIES, DF_Y_TYPES)
     print(f"Selected columns: {DF_Y_COLS}")
 
-    ax.clear()
-    show_figure(ax, df, X_col, DF_Y_COLS, canvas)
-    canvas.draw()
+    show_figure()
+
+    show_corr_matrix()
+
 
 def main():
+    global DF, CORR_DF, AX_DF, FIG_CORR, CANVAS_DF, AX_CORR, FIG_CORR, CANVAS_CORR, DF_Y_COLS
     #read in the data
     filename = get_out_filename()
     engine = get_engine(filename)
@@ -178,19 +205,23 @@ def main():
 
     dfs = read_in_dfs(engine, table_names)
     DF = dfs['df']
+    CORR_DF = dfs['corr']
+
     df_cols = DF.columns
     root = create_ui(df_cols)
 
     # create a plot
     fig_df, AX_DF = create_figure()
+    FIG_CORR, AX_CORR = create_figure()
     CANVAS_DF = FigureCanvasTkAgg(fig_df, master=root)
+    CANVAS_CORR = FigureCanvasTkAgg(FIG_CORR, master=root)
 
-    show_figure(AX_DF, DF, DF.index, DF_Y_COLS, CANVAS_DF)
+    show_figure()
+    show_corr_matrix()
+
     #button to update the plot
-    update_button = tk.Button(root, text="Update Plot", command=lambda: update_figure(AX_DF, DF, DF.index, CANVAS_DF))
-    update_button.pack(side=tk.BOTTOM)
-
-
+    update_button = tk.Button(root, text="Update Plot", command=lambda: update_figure())
+    update_button.grid(row=3, column=0, columnspan=5)
     
     #run the GUI
     root.mainloop()
