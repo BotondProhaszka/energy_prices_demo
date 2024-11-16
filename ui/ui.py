@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, inspect
 
 import tkinter as tk
 from tkinter import Listbox, MULTIPLE
+from tkcalendar import DateEntry
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -23,6 +24,9 @@ CANVAS_DF = None
 AX_CORR = None
 FIG_CORR = None
 CANVAS_CORR = None
+
+START = None
+END = None
 
 # Helper functions
 
@@ -150,6 +154,29 @@ def create_ui(columns):
 
     return root
 
+def date_picker(root):
+    # Add date pickers
+    start_date_label = tk.Label(root, text="Start Date")
+    start_date_label.grid(row=0, column=3)
+    start_date_picker = DateEntry(root)
+    start_date_picker.grid(row=0, column=4)
+
+    end_date_label = tk.Label(root, text="End Date")
+    end_date_label.grid(row=1, column=3)
+    end_date_picker = DateEntry(root)
+    end_date_picker.grid(row=1, column=4)
+
+    def on_select_date():
+        global START, END
+        START = start_date_picker.get_date()
+        END = end_date_picker.get_date()
+        # to datetime
+        START = pd.to_datetime(START)
+        END = pd.to_datetime(END)
+
+        print(f"Selected dates: {START} - {END}")
+    return on_select_date
+
 def create_figure():
     fig = Figure(figsize=(7, 5), dpi=100)
     ax = fig.add_subplot(111)
@@ -157,13 +184,17 @@ def create_figure():
 
 def show_figure():
     global DF, AX_DF, CANVAS_DF, DF_Y_COLS
-    print(f"y_col_names: {DF_Y_COLS}")
 
-    X_col = pd.to_datetime(DF.index)
+    AX_DF.clear()
+    df = DF.loc[START:END]
+
+    X_col = pd.to_datetime(df.index)
 
     for y_col_name in DF_Y_COLS:
-        y = DF[y_col_name]
+        y = df[y_col_name]
         AX_DF.plot(X_col, y, label=y_col_name)
+
+
     AX_DF.legend()
     AX_DF.set_xlabel('Datetime')
     AX_DF.set_ylabel('Y')
@@ -172,21 +203,35 @@ def show_figure():
     CANVAS_DF.draw()
 
 def show_corr_matrix():
-    global CORR_DF, AX_CORR, FIG_CORR, CANVAS_CORR, DF_Y_COLS
+    global CORR_DF, AX_CORR, FIG_CORR, CANVAS_CORR, DF_Y_COLS, COLORBAR_CORR
     try:
-        corr_df = CORR_DF[DF_Y_COLS].loc[DF_Y_COLS]
+        corr_df = CORR_DF.loc[DF_Y_COLS, DF_Y_COLS]
 
-        AX_CORR.matshow(corr_df)
-        FIG_CORR.colorbar(AX_CORR.matshow(corr_df))
-        CANVAS_CORR.get_tk_widget().grid(row=2, column=5, columnspan=5)
+        AX_CORR.clear()
+        cax = AX_CORR.matshow(corr_df, cmap='coolwarm', vmin=-1, vmax=1)
+        AX_CORR.set_xticks(np.arange(len(corr_df.columns)))
+        AX_CORR.set_yticks(np.arange(len(corr_df.index)))
+        AX_CORR.set_xticklabels(corr_df.columns, rotation=90)
+        AX_CORR.set_yticklabels(corr_df.index)
+
+        if 'COLORBAR_CORR' not in globals():
+            COLORBAR_CORR = FIG_CORR.colorbar(cax)
+        else:
+            COLORBAR_CORR.update_normal(cax)
+
+        AX_CORR.set_title('Correlation matrix')
+
+        CANVAS_CORR.get_tk_widget().grid(row=2, column=7, columnspan=5)
         CANVAS_CORR.draw()
         
     except Exception as e:
         print(f"Error: {e}")
 
 
-def update_figure():
+def update_figure(on_select_date):
     global DF_Y_COUNTRIES, DF_Y_TYPES, DF_Y_COLS
+
+    on_select_date()
 
     DF_Y_COLS = get_col_names(DF_Y_COUNTRIES, DF_Y_TYPES)
     print(f"Selected columns: {DF_Y_COLS}")
@@ -205,7 +250,10 @@ def main():
 
     dfs = read_in_dfs(engine, table_names)
     DF = dfs['df']
+    print(DF.head())
     CORR_DF = dfs['corr']
+    # set index to datetime in df
+    DF.index = pd.to_datetime(DF.index)
 
     df_cols = DF.columns
     root = create_ui(df_cols)
@@ -215,14 +263,20 @@ def main():
     FIG_CORR, AX_CORR = create_figure()
     CANVAS_DF = FigureCanvasTkAgg(fig_df, master=root)
     CANVAS_CORR = FigureCanvasTkAgg(FIG_CORR, master=root)
-
+    on_select_date = date_picker(root)
     show_figure()
     show_corr_matrix()
 
     #button to update the plot
-    update_button = tk.Button(root, text="Update Plot", command=lambda: update_figure())
-    update_button.grid(row=3, column=0, columnspan=5)
+    update_button = tk.Button(root, text="Update Plot", command=lambda: update_figure(on_select_date))
+    update_button.grid(row=0, column=4, columnspan=5)
     
+    # a label nex to the button
+    firs_date = DF.index[0]
+    last_date = DF.index[-1]
+    info_label = tk.Label(root, text="First date: " + str(firs_date) + " Last date: " + str(last_date))
+    info_label.grid(row=1, column=4, columnspan=5)
+
     #run the GUI
     root.mainloop()
 
