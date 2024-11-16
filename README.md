@@ -1,9 +1,10 @@
 # Demo app for energy price data processing
 
-<pre>
-This is a demonstration application designed for processing energy price data. Developed in Python, the app utilizes tkinter for its user interface. The dataset used is a simplified example, focusing on Hungarian electricity prices between January 1, 2020, and March 1, 2020. <br>
+This is a demonstration application designed for processing energy price data. Developed in Python, the app utilizes tkinter for its user interface.
+The dataset used is a simplified example, focusing on Hungarian electricity prices between January 1, 2020, and March 1, 2020. <br>
 Created by Botond Bendegúz PROHÁSZKA in 2024.
-</pre>
+ 
+ ---
 
 # Table of contents
 1. [Introduction](#introduction)
