@@ -10,6 +10,7 @@ Created by Botond Bendegúz PROHÁSZKA in 2024.
 1. [Introduction](#introduction)
 2. [Installation](#installation)
 3. [Usage](#usage)
+4. [Personal notes](#personal-notes)
 
 ## Introduction <a name="introduction"></a>
 This application serves as a demonstration for processing energy price data. It retrieves information from [ENTSO-E](https://www.entsoe.eu) using the [entsoe-py](https://github.com/EnergieID/entsoe-py) library. The provided demo scripts facilitate downloading, processing, and displaying the data. The app incorporates a simple interface that enables users to select column types for a specific country and time period to visualize the data effectively."
@@ -75,3 +76,7 @@ The app will start and you can select the country and time period to display the
 
 ## Image of the app:
 ![App image](ui/ui.png)
+
+## Personal notes <a name="personal-notes"></a>
+
+I picked this topic because it ties in with my Master's thesis, which I really enjoyed working on during my university studies. It’s also a topic with real societal importance, which makes it even more interesting to me. Plus, I already knew the API and dataset, so it was easier and more straightforward to dive into this project.
